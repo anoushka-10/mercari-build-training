@@ -1,0 +1,9 @@
+{
+    "items": [
+      {"name": "jacket", "category": "fashion"},
+      {"name": "shoes", "category": "footwear"},
+      {"name": "hat", "category": "accessories"}
+  
+    ]
+  }
+  

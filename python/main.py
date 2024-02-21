@@ -18,28 +18,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+items = list()
 
 @app.get("/")
 def root():
     return {"message": "Hello, world!"}
 
+@app.get("/items")
+def get_items():
+    return {"items": items}
 
 @app.post("/items")
-def add_item(name: str = Form(...)):
+def add_item(name: str = Form(...), category: str = Form(...)):
     logger.info(f"Receive item: {name}")
-    return {"message": f"item received: {name}"}
-
+    new_item = {"name": name, "category": category}
+    items.append(new_item)
+    return {"items": [new_item]}
 
 @app.get("/image/{image_name}")
 async def get_image(image_name):
     # Create image path
     image = images / image_name
-
     if not image_name.endswith(".jpg"):
         raise HTTPException(status_code=400, detail="Image path does not end with .jpg")
-
     if not image.exists():
         logger.debug(f"Image not found: {image}")
         image = images / "default.jpg"
-
     return FileResponse(image)
