@@ -1,8 +1,8 @@
 import os
 import logging
 import pathlib
-import json
-from fastapi import FastAPI, Form, File, UploadFile, HTTPException, Path
+import sqlite3
+from fastapi import FastAPI, Form, File, UploadFile, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -11,6 +11,7 @@ logger = logging.getLogger("uvicorn")
 logger.level = logging.INFO
 images = pathlib.Path(__file__).parent.resolve() / "images"
 origins = [os.environ.get("FRONT_URL", "http://localhost:3000")]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -19,23 +20,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-items_file = pathlib.Path(__file__).parent.resolve() / "items.json"
-items = []
+# SQLite database initialization
+db_path = pathlib.Path(__file__).parent.resolve() / "mercari.sqlite3"
 
-def read_items():
-    if items_file.is_file():
-        with open(items_file, 'r') as file:
-            return json.load(file).get("items", [])
-    return []
+def init_db():
+    with sqlite3.connect(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS categories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                category_id INTEGER NOT NULL,
+                image TEXT NOT NULL,
+                FOREIGN KEY (category_id) REFERENCES categories (id)
+            )
+        ''')
+    logger.info("Database initialized")
 
-def write_items(items_data):
-    with open(items_file, 'w') as file:
-        json.dump({"items": items_data}, file)
-
-def hash_image(image_data):
-    sha256_hash = hashlib.sha256()
-    sha256_hash.update(image_data)
-    return sha256_hash.hexdigest()
+init_db()
 
 @app.get("/")
 def root():
@@ -43,37 +51,33 @@ def root():
 
 @app.get("/items")
 def get_items():
-    items_data = read_items()
+    with sqlite3.connect(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT items.id, items.name, categories.name AS category, items.image FROM items INNER JOIN categories ON items.category_id = categories.id")
+        items_data = cursor.fetchall()
     return {"items": items_data}
-
-@app.get("/items/{item_id}")
-def get_item(item_id: int = Path(..., title="The ID of the item to get")):
-    items_data = read_items()
-    if 0 <= item_id < len(items_data):
-        return items_data[item_id]
-    else:
-        raise HTTPException(status_code=404, detail="Item not found")
 
 @app.post("/items")
 async def add_item(name: str = Form(...), category: str = Form(...), image: UploadFile = File(...)):
     try:
         logger.info(f"Receive item: {name}, Category: {category}")
 
-        # Read the image data and hash it
-        image_data = await image.read()
-        image_hash = hash_image(image_data)
+        # Save category to the categories table (if not exists)
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("INSERT OR IGNORE INTO categories (name) VALUES (?)", (category,))
 
-        # Save the image with the hashed name
-        image_filename = f"{image_hash}.jpg"
-        image_path = images / image_filename
+            # Retrieve category_id
+            cursor.execute("SELECT id FROM categories WHERE name = ?", (category,))
+            category_id = cursor.fetchone()[0]
+
+            # Save item information to the items table
+            cursor.execute("INSERT INTO items (name, category_id, image) VALUES (?, ?, ?)", (name, category_id, image.filename))
+
+        # Save the image with the original filename
+        image_path = images / image.filename
         with open(image_path, "wb") as image_file:
-            image_file.write(image_data)
-
-        # Save item information to items.json
-        new_item = {"name": name, "category": category, "image": image_filename}
-        items_data = read_items()
-        items_data.append(new_item)
-        write_items(items_data)
+            image_file.write(await image.read())
 
         return {"message": f"Item received: {name}, Category: {category}"}
 
@@ -91,3 +95,8 @@ async def get_image(image_name):
         logger.debug(f"Image not found: {image}")
         image = images / "default.jpg"
     return FileResponse(image)
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="127.0.0.1", port=9000, reload=True)
