@@ -1,5 +1,5 @@
-# Use the official Python image as the base image
-FROM python:3.12
+# Use the official Python image as a base image
+FROM python:3.12-alpine
 
 # Set the working directory in the container
 WORKDIR /app
@@ -7,14 +7,18 @@ WORKDIR /app
 # Copy the requirements.txt file into the container
 COPY requirements.txt .
 
+
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the Python source code files into the container
-COPY . .
+# Create a non-root user and set ownership of the /app directory
+RUN addgroup -S mercari && adduser -S trainee -G mercari
+RUN chown -R trainee:mercari /app
 
-# Expose the port the API will run on
-EXPOSE 8000
+# Switch to the non-root user
+USER trainee
 
-# Command to run the API when the container starts
-CMD ["python", "app.py"]
+# Optional: Run Go-related commands if Go is also needed
+# RUN go version
+
+# Your additional Dockerfile instructions go here
