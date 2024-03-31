@@ -19,10 +19,8 @@ RUN chown -R trainee:mercari /app
 
 # Switch to the non-root user
 USER trainee
-
 # Optional: Run Go-related commands if Go is also needed
 # RUN go version
-
 # Your additional build-related instructions go here
 
 # Stage 3: Final stage
