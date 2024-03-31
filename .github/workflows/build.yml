@@ -1,5 +1,5 @@
 name: build
-run-name: ${{ github.actor }} is building ${{ github.ref_name }}
+run-name: anoushka-10 is building ${{ github.ref_name }}
 on: [push]
 
 env:
@@ -21,7 +21,7 @@ jobs:
       uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
       with:
        registry: ${{ env.REGISTRY }}
-       username: ${{ github.actor }}
+       username: anoushka-10
        password: ghp_SOuqo5YI8wMCdzzHktLNa0
 
     - name: Extract metadata (tags, labels) for Docker
