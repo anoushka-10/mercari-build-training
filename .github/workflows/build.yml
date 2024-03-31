@@ -46,4 +46,4 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          builder: mybuilder # Specify the name of the builder instance created locally .
+
