@@ -45,6 +45,6 @@ jobs:
        tags: ${{ steps.meta.outputs.tags }}
        labels: ${{ steps.meta.outputs.labels }}
        #jefhfj
-permissions:
-  contents: read
-  packages: write
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
